@@ -1,0 +1,13 @@
+¿Qué grupos encontraría un programa de particiones si usara la heurística Hill-Climbing para los pesos 
+7, 9, 7, 6, 7, 7, 5, 7, 5 y 6?
+
+Se iterarían los valores con el objetivo de minimizar la diferencia entre las sumas de los subconjuntos. 
+En este caso, el algoritmo encuentra el grupo 1 con: {9, 7, 6, 6, 5} y el grupo 2 con: {7, 7, 7, 7, 5}. 
+La diferencia mínima obtenida es 0, lo que significa que se logró una partición perfecta.
+
+¿Cuáles son los pesos totales de los grupos y la diferencia entre los pesos totales?
+
+Los pesos totales de los grupos son:
+Grupo 1: {9, 7, 6, 6, 5}, dando como suma total: 33
+Grupo 2: {7, 7, 7, 7, 5}, dando como suma total: 33
+Diferencia total mínima: 0

@@ -1,3 +1,9 @@
+/* AUTORES
+ * Carlos Ernesto Soto Alarcón A01747990
+ * Sergio Alfonso Casillas Santoyo A01424863
+ * Karime Itzel Ruvalcaba Pérez A01656188
+ */
+
 #include <iostream>
 #include <vector>
 #include <algorithm>

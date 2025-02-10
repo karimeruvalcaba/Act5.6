@@ -1,3 +1,9 @@
+/* AUTORES
+ * Carlos Ernesto Soto Alarcón A01747990
+ * Sergio Alfonso Casillas Santoyo A01424863
+ * Karime Itzel Ruvalcaba Pérez A01656188
+ */
+
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -5,7 +11,6 @@
 #include <limits>
 #include <random>
 #include <chrono>
-#include <fstream>
 using namespace std;
 
 /**
@@ -37,106 +42,143 @@ int calculateDifference(const vector<int>& weights, const vector<int>& assignmen
 }
 
 /**
- * Búsqueda exhaustiva para resolver el problema de partición.
- * Complejidad Temporal: O(2^n), donde n es el número de pesos.
+ * Búsqueda Exhaustiva: Complejidad O(2^n)
  */
-int exhaustiveSearch(const vector<int>& weights, bool useShortCircuit, vector<int>& bestAssignment, long long& nodesVisited) {
+int exhaustiveSearch(const vector<int>& weights, bool useShortCircuit) {
     int n = weights.size();
     int minDiff = numeric_limits<int>::max();
     vector<int> assignment(n, 0);
 
-    // Generar todas las combinaciones posibles
     for (int mask = 0; mask < (1 << n); mask++) {
-        nodesVisited++;
         for (int i = 0; i < n; i++) {
-            assignment[i] = (mask >> i) & 1; // Asignar 0 o 1 a cada peso
+            assignment[i] = (mask >> i) & 1;
         }
         int diff = calculateDifference(weights, assignment);
         if (diff < minDiff) {
             minDiff = diff;
-            bestAssignment = assignment; // Guardar la asignación óptima
-            if (useShortCircuit && minDiff == 0) break; // Short circuit
+            if (useShortCircuit && minDiff == 0) break;
         }
     }
     return minDiff;
 }
 
 /**
- * Branch and Bound para resolver el problema de partición.
- * Complejidad Temporal: O(2^n) en el peor caso, pero con poda.
+ * Función auxiliar para Branch and Bound.
  */
-void branchAndBound(const vector<int>& weights, int index, int currentDiff, vector<int>& assignment, int& minDiff, vector<int>& bestAssignment, long long& nodesVisited) {
-    nodesVisited++;
+void branchAndBoundHelper(const vector<int>& weights, vector<int>& assignment, int index, int sum1, int sum2, int& minDiff, bool useShortCircuit) {
     if (index == weights.size()) {
-        if (currentDiff < minDiff) {
-            minDiff = currentDiff;
-            bestAssignment = assignment;
+        int diff = abs(sum1 - sum2);
+        if (diff < minDiff) {
+            minDiff = diff;
         }
         return;
     }
 
-    // Prune if the current difference is already worse than the best
-    if (currentDiff >= minDiff) {
-        return;
+    // Ramificación: conjunto 1
+    assignment[index] = 0;
+    branchAndBoundHelper(weights, assignment, index + 1, sum1 + weights[index], sum2, minDiff, useShortCircuit);
+    if (useShortCircuit && minDiff == 0) return;
+
+    // Ramificación: conjunto 2
+    assignment[index] = 1;
+    branchAndBoundHelper(weights, assignment, index + 1, sum1, sum2 + weights[index], minDiff, useShortCircuit);
+    if (useShortCircuit && minDiff == 0) return;
+}
+
+/**
+ * Branch and Bound: Complejidad O(2^n)
+ */
+int branchAndBound(const vector<int>& weights, bool useShortCircuit) {
+    int minDiff = numeric_limits<int>::max();
+    vector<int> assignment(weights.size(), 0);
+    branchAndBoundHelper(weights, assignment, 0, 0, 0, minDiff, useShortCircuit);
+    return minDiff;
+}
+
+/**
+ * **Heurística Aleatoria Mejorada**
+ * - Inicia con una asignación aleatoria de pesos a dos subconjuntos.
+ * - Realiza swaps aleatorios para minimizar la diferencia.
+ * - Se detiene si encuentra una diferencia de 0 o tras `maxIterations` intentos.
+ * Complejidad Aproximada: O(n log n)
+ */
+int randomizedHeuristic(const vector<int>& weights, int maxIterations) {
+    int n = weights.size();
+    vector<int> assignment(n);
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_int_distribution<> coinFlip(0, 1);
+
+    // Asignar aleatoriamente los pesos a dos conjuntos
+    for (int i = 0; i < n; i++) {
+        assignment[i] = coinFlip(gen);
     }
 
-    // Assign to set 0
-    assignment[index] = 0;
-    branchAndBound(weights, index + 1, abs(currentDiff + weights[index]), assignment, minDiff, bestAssignment, nodesVisited);
+    int bestDiff = calculateDifference(weights, assignment);
 
-    // Assign to set 1
-    assignment[index] = 1;
-    branchAndBound(weights, index + 1, abs(currentDiff - weights[index]), assignment, minDiff, bestAssignment, nodesVisited);
+    for (int iter = 0; iter < maxIterations; iter++) {
+        int i = gen() % n;
+        assignment[i] = 1 - assignment[i];  // Cambiar de conjunto
+        int newDiff = calculateDifference(weights, assignment);
+
+        if (newDiff < bestDiff) {
+            bestDiff = newDiff;
+        } else {
+            assignment[i] = 1 - assignment[i];  // Revertir cambio si no mejora
+        }
+
+        if (bestDiff == 0) break; // Solución óptima encontrada
+    }
+
+    return bestDiff;
 }
 
 int main() {
-    int minWeight = 1;
-    bool useShortCircuit = true;
+    int n, minWeight, maxWeight, maxIterations = 10000;
+    bool useShortCircuit;
+    char algorithmChoice;
 
-    // Archivo CSV para guardar los resultados
-    ofstream csvFile("Act5.6/Ejercicio_07");
-    if (!csvFile.is_open()) {
-        cerr << "Error al abrir el archivo CSV." << endl;
+    cout << "Ingrese el número de pesos: ";
+    cin >> n;
+    cout << "Ingrese el valor mínimo de los pesos: ";
+    cin >> minWeight;
+    cout << "Ingrese el valor máximo de los pesos: ";
+    cin >> maxWeight;
+    cout << "¿Usar short circuit? (1: Sí, 0: No): ";
+    cin >> useShortCircuit;
+    cout << "Seleccione el algoritmo (E: Exhaustiva, B: Branch and Bound, H: Heurística Aleatoria): ";
+    cin >> algorithmChoice;
+
+    vector<int> weights = generateRandomWeights(n, minWeight, maxWeight);
+
+    cout << "Pesos generados: ";
+    for (int weight : weights) {
+        cout << weight << " ";
+    }
+    cout << endl;
+
+    int result;
+    auto start = chrono::high_resolution_clock::now();
+
+    if (algorithmChoice == 'E' || algorithmChoice == 'e') {
+        result = exhaustiveSearch(weights, useShortCircuit);
+        cout << "Resultado (Búsqueda Exhaustiva): ";
+    } else if (algorithmChoice == 'B' || algorithmChoice == 'b') {
+        result = branchAndBound(weights, useShortCircuit);
+        cout << "Resultado (Branch and Bound): ";
+    } else if (algorithmChoice == 'H' || algorithmChoice == 'h') {
+        result = randomizedHeuristic(weights, maxIterations);
+        cout << "Resultado (Heurística Aleatoria): ";
+    } else {
+        cout << "Opción no válida." << endl;
         return 1;
     }
-    csvFile << "n,Exhaustivo,BranchAndBound\n";
 
-    // Probar con diferentes valores de n
-    for (int n = 5; n <= 25; n++) {
-        int maxWeight = n;
-        vector<int> weights = generateRandomWeights(n, minWeight, maxWeight);
+    auto end = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed = end - start;
 
-        // Búsqueda exhaustiva
-        vector<int> bestAssignmentExhaustive;
-        long long exhaustiveNodesVisited = 0;
-        auto startExhaustive = chrono::high_resolution_clock::now();
-        int resultExhaustive = exhaustiveSearch(weights, useShortCircuit, bestAssignmentExhaustive, exhaustiveNodesVisited);
-        auto endExhaustive = chrono::high_resolution_clock::now();
-        chrono::duration<double> elapsedExhaustive = endExhaustive - startExhaustive;
-
-        // Branch and Bound
-        vector<int> bestAssignmentBB;
-        long long BBNodesVisited = 0;
-        int minDiffBB = numeric_limits<int>::max();
-        vector<int> assignmentBB(n, 0);
-        auto startBB = chrono::high_resolution_clock::now();
-        branchAndBound(weights, 0, 0, assignmentBB, minDiffBB, bestAssignmentBB, BBNodesVisited);
-        auto endBB = chrono::high_resolution_clock::now();
-        chrono::duration<double> elapsedBB = endBB - startBB;
-
-        // Guardar resultados en el archivo CSV
-        csvFile << n << "," << exhaustiveNodesVisited << "," << BBNodesVisited << "\n";
-
-        // Mostrar resultados en la consola
-        cout << "n = " << n << endl;
-        cout << "Búsqueda Exhaustiva: Diferencia mínima = " << resultExhaustive << ", Nodos visitados = " << exhaustiveNodesVisited << ", Tiempo = " << elapsedExhaustive.count() << " segundos" << endl;
-        cout << "Branch and Bound: Diferencia mínima = " << minDiffBB << ", Nodos visitados = " << BBNodesVisited << ", Tiempo = " << elapsedBB.count() << " segundos" << endl;
-        cout << endl;
-    }
-
-    // Cerrar el archivo CSV
-    csvFile.close();
-    cout << "Resultados guardados en 'Ejercicio_07/resultados.csv'." << endl;
+    cout << "Diferencia mínima: " << result << endl;
+    cout << "Tiempo de ejecución: " << elapsed.count() << " segundos" << endl;
 
     return 0;
 }
