@@ -94,7 +94,7 @@ int main() {
     bool useShortCircuit = true;
 
     // Archivo CSV para guardar los resultados
-    ofstream csvFile("/workspaces/Act5.6/Ejercicio_07");
+    ofstream csvFile("Act5.6/Ejercicio_07");
     if (!csvFile.is_open()) {
         cerr << "Error al abrir el archivo CSV." << endl;
         return 1;
